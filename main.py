@@ -5,7 +5,7 @@ from keras.applications import InceptionV3, ResNet50, Xception
 from keras.layers import Flatten, Dense, Input, Dropout
 from keras.models import Model
 from keras.optimizers import Adam, RMSprop, Adadelta, Adagrad
-from six.moves import cPickle
+import h5py
 import argparse
 import keras
 import matplotlib.pyplot as plt
@@ -36,21 +36,12 @@ CNN = "RN50"
 
 # Load data
 print("...loading training data")
-f = open((os.path.join(__location__, "data.pkl")), "rb")
-img = cPickle.load(f)
-f.close()
-
-f = open((os.path.join(__location__, "data_age.pkl")), "rb")
-age = cPickle.load(f)
-f.close()
-
-f = open((os.path.join(__location__, "data_gender.pkl")), "rb")
-gender = cPickle.load(f)
-f.close()
-
-img = np.asarray(img, dtype=np.float32)
-age = np.asarray(age)
-gender = np.asarray(gender)
+with h5py.File("dataset.hdf5", "r+") as f:
+    img = f['img'][()]
+    age = f['age'][()]
+    gender = f['gender'][()]
+    f.flush()
+    f.close()
 
 # this is to normalize x since RGB scale is [0,255]
 img /= 255.
@@ -184,6 +175,28 @@ tbCallBack = keras.callbacks.TensorBoard(
     write_images=True,
 )
 print("tensorboard --logdir", LOG_DIR_TENSORBOARD)
+
+
+# def my_generator(data, labels, indices, batch_size, steps):
+#    i = 1
+#    while 1:
+#        (batch_pairs, batch_labels) = fetch_batch(i, data, labels,
+#                                                  indices, batch_size)
+#        if i == steps:
+#            i = 1  # avoids going too far in the data
+#            # will preload the first batches for the next epoch
+#        else:
+#            i += 1  # go for the next batch
+#        yield [batch_pairs[:, 0], batch_pairs[:, 1]], batch_labels
+#
+#
+# history = model.fit_generator(
+#    tgen,
+#    samples_per_epoch=113526,
+#    nb_epoch=6,
+#    validation_data=vgen,
+#    nb_val_samples=20001
+# )
 
 history = model.fit(
     [img_train, gdr_train],

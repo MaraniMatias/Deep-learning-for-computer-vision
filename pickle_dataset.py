@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 from deep_cut_hand.main_histogram import makerModel, getHistogram
-from six.moves import cPickle
+import h5py
 import cv2
 import fnmatch
 import math
@@ -299,18 +299,12 @@ def loadDataSet(files=[]):
 # Save dataset
 def saveDataSet(X_train, y_age, y_gender):
     print("\nSaving data...", "\nGender to use %s " % (SPLIT_GENDER))
-    # Save data
-    train_pkl = open("data.pkl", "wb")
-    cPickle.dump(X_train, train_pkl, protocol=cPickle.HIGHEST_PROTOCOL)
-    train_pkl.close()
-
-    train_age_pkl = open("data_age.pkl", "wb")
-    cPickle.dump(y_age, train_age_pkl, protocol=cPickle.HIGHEST_PROTOCOL)
-    train_age_pkl.close()
-
-    train_gender_pkl = open("data_gender.pkl", "wb")
-    cPickle.dump(y_gender, train_gender_pkl, protocol=cPickle.HIGHEST_PROTOCOL)
-    train_gender_pkl.close()
+    with h5py.File("dataset.hdf5", "w") as f:
+        f.create_dataset("img", data=X_train, dtype='uint8', chunks=True)
+        f.create_dataset("age", data=y_age, chunks=True)
+        f.create_dataset("gender", data=y_gender, chunks=True)
+        f.flush()
+        f.close()
     print("Completed saved data")
 
 
