@@ -300,7 +300,7 @@ def loadDataSet(files=[]):
 def saveDataSet(X_train, y_age, y_gender):
     print("\nSaving data...", "\nGender to use %s " % (SPLIT_GENDER))
     with h5py.File("dataset.hdf5", "w") as f:
-        f.create_dataset("img", data=X_train, dtype='uint8', chunks=True)
+        f.create_dataset("img", data=X_train, dtype=np.float, chunks=True)
         f.create_dataset("age", data=y_age, chunks=True)
         f.create_dataset("gender", data=y_gender, chunks=True)
         f.flush()
