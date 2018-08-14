@@ -21,7 +21,7 @@ SORT_RANDOMLY = True
 
 # Separate data set by gender
 # male, female, both
-SPLIT_GENDER = 'both'
+SPLIT_GENDER = "both"
 # SPLIT_GENDER = 'female'
 # SPLIT_GENDER = 'male'
 
@@ -271,8 +271,9 @@ def loadDataSet(files=[]):
     if IA_EXTRACTING_HANDS == True:
         deep_model = makerModel()
         try:
-            deep_model.load_weights(os.path.join(
-                __location__, "deep_cut_hand", "model", "model_histogram.h5"))
+            deep_model.load_weights(
+                os.path.join(__location__, "deep_cut_hand", "model", "model_histogram.h5")
+            )
         except:
             print("I can not find the weights for the model.")
             exit(0)
@@ -298,9 +299,16 @@ def loadDataSet(files=[]):
 
 # Save dataset
 def saveDataSet(X_train, y_age, y_gender):
-    print("\nSaving data...", "\nGender to use %s " % (SPLIT_GENDER))
+    print("\nGender to use %s " % (SPLIT_GENDER), "\nSaving data...")
     with h5py.File("dataset.hdf5", "w") as f:
-        f.create_dataset("img", data=X_train, dtype=np.float, chunks=True)
+        f.create_dataset(
+            "img",
+            data=X_train,
+            dtype=np.float,
+            chunks=True,
+            compression="gzip",
+            compression_opts=4,
+        )
         f.create_dataset("age", data=y_age, chunks=True)
         f.create_dataset("gender", data=y_gender, chunks=True)
         f.flush()
@@ -333,11 +341,11 @@ def getFiles():
             # Get gender
             male = csv_row.male.tolist()[0]
 
-            if SPLIT_GENDER == 'female' and not(male):
+            if SPLIT_GENDER == "female" and not (male):
                 rta.append((file_name, bone_age, 1 if male else 0))
-            if SPLIT_GENDER == 'male' and male:
+            if SPLIT_GENDER == "male" and male:
                 rta.append((file_name, bone_age, 1 if male else 0))
-            if SPLIT_GENDER == 'both':
+            if SPLIT_GENDER == "both":
                 rta.append((file_name, bone_age, 1 if male else 0))
     return rta
 
