@@ -188,16 +188,13 @@ def generateBatchData():
             age = f['age'][()]
             gender = f['gender'][()]
             for i in range(len(imgs)):
-                X_imgs = []
-                X_gender = []
-                y_ages = []
                 # print("Element", i)
                 # print("train shape:", str(imgs[i].shape))
                 # print("age shape:", str(age[i]))
                 # print("gender shape:", str(gender[i]))
-                X_imgs.append(imgs[i]/255.)
-                X_gender.append(gender[i])
-                y_ages.append(age[i])
+                X_imgs = [(imgs[i]/255.)]
+                X_gender = [(gender[i])]
+                y_ages = [(age[i])]
                 yield [np.asarray(X_imgs), np.asarray(X_gender)], np.asarray(y_ages)
 
 
