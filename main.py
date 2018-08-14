@@ -21,7 +21,7 @@ args = vars(ap.parse_args())
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 # network and training
-EPOCHS = 30
+EPOCHS = 3
 BATCH_SIZE = 35
 VERBOSE = 1
 # https://keras.io/optimizers
@@ -32,67 +32,16 @@ OPTIMIZER = Adam(lr=0.001)
 
 # Generare crunch dataset for load on memory
 FIT_GENERATOR = True
+DATASET_SIZE = 264+65+65
 
 # Image processing layer
 # CNN = 'Xception'
 # CNN = 'IV3'
 CNN = "RN50"
 
-# Load data
-print("...loading training data")
-with h5py.File("dataset.hdf5", "r+") as f:
-    img = f['img'][()]
-    age = f['age'][()]
-    gender = f['gender'][()]
-    # f.flush()
-    f.close()
-
-# this is to normalize x since RGB scale is [0,255]
-img /= 255.
-
-img_final = []
-age_final = []
-gdr_final = []
-
-# Shuffle images and split into train, validation and test sets
-random_no = np.random.choice(img.shape[0], size=img.shape[0], replace=False)
-for i in random_no:
-    img_final.append(img[i, :, :, :])
-    age_final.append(age[i])
-    gdr_final.append(gender[i])
-
-img_final = np.asarray(img_final)
-age_final = np.asarray(age_final)
-gdr_final = np.asarray(gdr_final)
-
-# Split images dataset
-k = int(len(img_final) / 6)  # Decides split count
-
-img_test = img_final[:k, :, :, :]
-age_test = age_final[:k]
-gdr_test = gdr_final[:k]
-
-img_valid = img_final[k: 2 * k, :, :, :]
-age_valid = age_final[k: 2 * k]
-gdr_valid = gdr_final[k: 2 * k]
-
-img_train = img_final[2 * k:, :, :, :]
-gdr_train = gdr_final[2 * k:]
-age_train = age_final[2 * k:]
-
-print("img_train shape:" + str(img_train.shape))
-print("age_train shape:" + str(age_train.shape))
-print("gdr_train shape:" + str(gdr_train.shape))
-print("img_valid shape:" + str(img_valid.shape))
-print("age_valid shape:" + str(age_valid.shape))
-print("gdr_valid shape:" + str(gdr_valid.shape))
-print("img_test shape:" + str(img_test.shape))
-print("age_test shape:" + str(age_test.shape))
-print("gdr_test shape:" + str(gdr_test.shape))
-
 # First we need to create a model structure
 # input layer
-image_input = Input(shape=img_train.shape[1:], name="image_input")
+image_input = Input(shape=(224, 224, 3), name="image_input")
 
 if CNN == "IV3":
     # Inception V3 layer with pre-trained weights from ImageNet
@@ -181,12 +130,52 @@ tbCallBack = keras.callbacks.TensorBoard(
 print("tensorboard --logdir", LOG_DIR_TENSORBOARD)
 
 
-def generateBatchData():
+def generateBatchDataTrain():
+    # Split images dataset
+    k = int(DATASET_SIZE / 6)  # Decides split count
     while True:
-        with h5py.File("dataset.hdf5", "r+") as f:
-            imgs = f['img'][()]
-            age = f['age'][()]
-            gender = f['gender'][()]
+        with h5py.File("dataset-train.hdf5", "r+") as f:
+            imgs = f['img'][()][2 * k:, :, :, :]
+            age = f['age'][()][2 * k:]
+            gender = f['gender'][()][2 * k:]
+            for i in range(len(imgs)):
+                # print("Element", i)
+                # print("train shape:", str(imgs[i].shape))
+                # print("age shape:", str(age[i]))
+                # print("gender shape:", str(gender[i]))
+                X_imgs = [(imgs[i]/255.)]
+                X_gender = [(gender[i])]
+                y_ages = [(age[i])]
+                yield [np.asarray(X_imgs), np.asarray(X_gender)], np.asarray(y_ages)
+
+
+def generateBatchDataValid():
+    # Split images dataset
+    k = int(DATASET_SIZE / 6)  # Decides split count
+    while True:
+        with h5py.File("dataset-valid.hdf5", "r+") as f:
+            imgs = f['img'][()][k: 2 * k, :, :, :]
+            age = f['age'][()][k: 2 * k]
+            gender = f['gender'][()][k: 2 * k]
+            for i in range(len(imgs)):
+                # print("Element", i)
+                # print("train shape:", str(imgs[i].shape))
+                # print("age shape:", str(age[i]))
+                # print("gender shape:", str(gender[i]))
+                X_imgs = [(imgs[i]/255.)]
+                X_gender = [(gender[i])]
+                y_ages = [(age[i])]
+                yield [np.asarray(X_imgs), np.asarray(X_gender)], np.asarray(y_ages)
+
+
+def generateBatchDataTest():
+    # Split images dataset
+    k = int(DATASET_SIZE / 6)  # Decides split count
+    while True:
+        with h5py.File("dataset-test.hdf5", "r+") as f:
+            imgs = f['img'][()][2 * k:, :, :, :]
+            age = f['age'][()][2 * k:]
+            gender = f['gender'][()][2 * k:]
             for i in range(len(imgs)):
                 # print("Element", i)
                 # print("train shape:", str(imgs[i].shape))
@@ -200,16 +189,76 @@ def generateBatchData():
 
 if FIT_GENERATOR == True:
     history = model.fit_generator(
-        generateBatchData(),
-        steps_per_epoch=(len(img_train)//BATCH_SIZE),
+        generateBatchDataTrain(),
+        steps_per_epoch=(int(DATASET_SIZE*(2/3))//BATCH_SIZE),
         epochs=EPOCHS,
         use_multiprocessing=True,
         # shuffle=True,
         verbose=VERBOSE,
-        validation_data=([img_valid, gdr_valid], [age_valid]),
+        validation_data=generateBatchDataValid(),
+        validation_steps=(int(DATASET_SIZE*(1/3))//BATCH_SIZE),
         callbacks=[tbCallBack, checkpoint, reduceLROnPlat],
     )
+
+    score = model.evaluate_generator(
+        generateBatchDataTest(),
+        steps=(int(DATASET_SIZE*(1/3))//BATCH_SIZE),
+        verbose=VERBOSE,
+        use_multiprocessing=True
+    )
 else:
+    # Load data
+    print("...loading training data")
+    with h5py.File("dataset.hdf5", "r+") as f:
+        img = f['img'][()]
+        age = f['age'][()]
+        gender = f['gender'][()]
+        # f.flush()
+        f.close()
+
+    # this is to normalize x since RGB scale is [0,255]
+    img /= 255.
+
+    img_final = []
+    age_final = []
+    gdr_final = []
+
+    # Shuffle images and split into train, validation and test sets
+    random_no = np.random.choice(img.shape[0], size=img.shape[0], replace=False)
+    for i in random_no:
+        img_final.append(img[i, :, :, :])
+        age_final.append(age[i])
+        gdr_final.append(gender[i])
+
+    img_final = np.asarray(img_final)
+    age_final = np.asarray(age_final)
+    gdr_final = np.asarray(gdr_final)
+
+    # Split images dataset
+    k = int(len(img_final) / 6)  # Decides split count
+
+    img_test = img_final[:k, :, :, :]
+    age_test = age_final[:k]
+    gdr_test = gdr_final[:k]
+
+    img_valid = img_final[k: 2 * k, :, :, :]
+    age_valid = age_final[k: 2 * k]
+    gdr_valid = gdr_final[k: 2 * k]
+
+    img_train = img_final[2 * k:, :, :, :]
+    gdr_train = gdr_final[2 * k:]
+    age_train = age_final[2 * k:]
+
+    print("img_train shape:" + str(img_train.shape))
+    print("age_train shape:" + str(age_train.shape))
+    print("gdr_train shape:" + str(gdr_train.shape))
+    print("img_valid shape:" + str(img_valid.shape))
+    print("age_valid shape:" + str(age_valid.shape))
+    print("gdr_valid shape:" + str(gdr_valid.shape))
+    print("img_test shape:" + str(img_test.shape))
+    print("age_test shape:" + str(age_test.shape))
+    print("gdr_test shape:" + str(gdr_test.shape))
+
     history = model.fit(
         [img_train, gdr_train],
         [age_train],
@@ -219,6 +268,14 @@ else:
         validation_data=([img_valid, gdr_valid], [age_valid]),
         callbacks=[tbCallBack, checkpoint, reduceLROnPlat],
     )
+
+    score = model.evaluate(
+        [img_test, gdr_test], age_test, batch_size=BATCH_SIZE, verbose=VERBOSE
+    )
+
+print("\nTest loss:", score[0])
+print("Test MAE:", score[1])
+print("Test accuracy:", score[2])
 
 # Path to save model
 PATHE_SAVE_MODEL = os.path.join(__location__, "model-backup")
@@ -234,14 +291,6 @@ with open(os.path.join(PATHE_SAVE_MODEL, "model.yaml"), "w") as yaml_file:
 # serialize weights to HDF5
 model.save_weights(os.path.join(PATHE_SAVE_MODEL, "model.h5"))
 print("Saved model to disk")
-
-score = model.evaluate(
-    [img_test, gdr_test], age_test, batch_size=BATCH_SIZE, verbose=VERBOSE
-)
-
-print("\nTest loss:", score[0])
-print("Test MAE:", score[1])
-print("Test accuracy:", score[2])
 
 # Save all data in history
 with open(os.path.join(PATHE_SAVE_MODEL, "history.pkl"), "wb") as f:
