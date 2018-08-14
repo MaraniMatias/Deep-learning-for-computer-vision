@@ -5,8 +5,9 @@ from keras.applications import InceptionV3, ResNet50, Xception
 from keras.layers import Flatten, Dense, Input, Dropout
 from keras.models import Model
 from keras.optimizers import Adam, RMSprop, Adadelta, Adagrad
-import h5py
+from six.moves import cPickle
 import argparse
+import h5py
 import keras
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,6 +30,9 @@ OPTIMIZER = Adam(lr=0.001)
 # OPTIMIZER = Adadelta(lr=1.0, rho=0.95, epsilon=None, decay=0.0)
 # OPTIMIZER = Adagrad(lr=0.05)
 
+# Generare crunch dataset for load on memory
+FIT_GENERATOR = True
+
 # Image processing layer
 # CNN = 'Xception'
 # CNN = 'IV3'
@@ -40,7 +44,7 @@ with h5py.File("dataset.hdf5", "r+") as f:
     img = f['img'][()]
     age = f['age'][()]
     gender = f['gender'][()]
-    f.flush()
+    # f.flush()
     f.close()
 
 # this is to normalize x since RGB scale is [0,255]
@@ -177,36 +181,47 @@ tbCallBack = keras.callbacks.TensorBoard(
 print("tensorboard --logdir", LOG_DIR_TENSORBOARD)
 
 
-# def my_generator(data, labels, indices, batch_size, steps):
-#    i = 1
-#    while 1:
-#        (batch_pairs, batch_labels) = fetch_batch(i, data, labels,
-#                                                  indices, batch_size)
-#        if i == steps:
-#            i = 1  # avoids going too far in the data
-#            # will preload the first batches for the next epoch
-#        else:
-#            i += 1  # go for the next batch
-#        yield [batch_pairs[:, 0], batch_pairs[:, 1]], batch_labels
-#
-#
-# history = model.fit_generator(
-#    tgen,
-#    samples_per_epoch=113526,
-#    nb_epoch=6,
-#    validation_data=vgen,
-#    nb_val_samples=20001
-# )
+def generateBatchData():
+    while True:
+        with h5py.File("dataset.hdf5", "r+") as f:
+            imgs = f['img'][()]
+            age = f['age'][()]
+            gender = f['gender'][()]
+            for i in range(len(imgs)):
+                X_imgs = []
+                X_gender = []
+                y_ages = []
+                # print("Element", i)
+                # print("train shape:", str(imgs[i].shape))
+                # print("age shape:", str(age[i]))
+                # print("gender shape:", str(gender[i]))
+                X_imgs.append(imgs[i]/255.)
+                X_gender.append(gender[i])
+                y_ages.append(age[i])
+                yield [np.asarray(X_imgs), np.asarray(X_gender)], np.asarray(y_ages)
 
-history = model.fit(
-    [img_train, gdr_train],
-    [age_train],
-    batch_size=BATCH_SIZE,
-    epochs=EPOCHS,
-    verbose=VERBOSE,
-    validation_data=([img_valid, gdr_valid], [age_valid]),
-    callbacks=[tbCallBack, checkpoint, reduceLROnPlat],
-)
+
+if FIT_GENERATOR == True:
+    history = model.fit_generator(
+        generateBatchData(),
+        steps_per_epoch=(len(img_train)//BATCH_SIZE),
+        epochs=EPOCHS,
+        use_multiprocessing=True,
+        # shuffle=True,
+        verbose=VERBOSE,
+        validation_data=([img_valid, gdr_valid], [age_valid]),
+        callbacks=[tbCallBack, checkpoint, reduceLROnPlat],
+    )
+else:
+    history = model.fit(
+        [img_train, gdr_train],
+        [age_train],
+        batch_size=BATCH_SIZE,
+        epochs=EPOCHS,
+        verbose=VERBOSE,
+        validation_data=([img_valid, gdr_valid], [age_valid]),
+        callbacks=[tbCallBack, checkpoint, reduceLROnPlat],
+    )
 
 # Path to save model
 PATHE_SAVE_MODEL = os.path.join(__location__, "model-backup")

@@ -37,7 +37,7 @@ SAVE_IMAGE_FOR_DEBUGGER = False
 EXTRACTING_HANDS = True
 
 # Using deep learning for normalizing histogram of level colors
-IA_EXTRACTING_HANDS = True
+IA_EXTRACTING_HANDS = False
 
 # Turn rotate image on/off
 ROTATE_IMAGE = False
@@ -307,7 +307,7 @@ def saveDataSet(X_train, y_age, y_gender):
             dtype=np.float,
             chunks=True,
             compression="gzip",
-            compression_opts=4,
+            compression_opts=5,
         )
         f.create_dataset("age", data=y_age, chunks=True)
         f.create_dataset("gender", data=y_gender, chunks=True)
