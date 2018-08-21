@@ -85,8 +85,8 @@ def cutHand(image):
     # Calculate gradient
     gx = cv2.Sobel(image, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(image, cv2.CV_32F, 0, 1, ksize=3)
-    mag, angle = cv2.cartToPolar(gx, gy, angleInDegrees=True)
-    writeImage("hgo", np.hstack([image_copy, angle, mag]), True)  # show the images
+    imgHGO, _ = cv2.cartToPolar(gx, gy, angleInDegrees=True)
+    writeImage("hgo", np.hstack([image_copy, imgHGO]), True)  # show the images
 
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     img = clahe.apply(image)
@@ -275,10 +275,7 @@ def writeFile(gender, dataset, X_train, x_gender, y_age):
     file_name = gender + "-" + dataset + "-" + ".hdf5"
     with h5py.File(os.path.join(__location__, "packaging-dataset", file_name), "w") as f:
         f.create_dataset(
-            "img",
-            data=X_train,
-            dtype=np.float32,
-            compression="gzip", compression_opts=5
+            "img", data=X_train, dtype=np.float32, compression="gzip", compression_opts=5
         )
         f.create_dataset("age", data=y_age, dtype=np.uint8)
         f.create_dataset("gender", data=x_gender, dtype=np.uint8)
@@ -293,9 +290,7 @@ def saveDataSet(genderType, X_train, x_gender, y_age):
     age = np.asarray(y_age, dtype=np.uint8)
     # Split images dataset
     k = int(len(X_train) / 6)
-    writeFile(
-        genderType, "testing", img[:k, :, :, :], gender[:k], age[:k]
-    )
+    writeFile(genderType, "testing", img[:k, :, :, :], gender[:k], age[:k])
     writeFile(
         genderType,
         "validation",
