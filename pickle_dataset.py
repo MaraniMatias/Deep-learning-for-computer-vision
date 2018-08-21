@@ -8,11 +8,11 @@ import h5py
 import sys
 
 # Directory of dataset to use
-# TRAIN_DIR = "dataset_sample"
-TRAIN_DIR = "boneage-training-dataset"
+TRAIN_DIR = "dataset_sample"
+# TRAIN_DIR = "boneage-training-dataset"
 
 # Use N images of dataset, If it is -1 using all dataset
-CUT_DATASET = -1
+CUT_DATASET = 2000
 
 # Remove images that are less than or equal to 23 months of age
 REMOVE_AGE = 23
@@ -81,6 +81,12 @@ def histogramsLevelFix(img, min_color, max_color):
 # is applied to the original and cut out.
 def cutHand(image):
     image_copy = image.copy()
+
+    # Calculate gradient
+    gx = cv2.Sobel(image, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(image, cv2.CV_32F, 0, 1, ksize=3)
+    mag, angle = cv2.cartToPolar(gx, gy, angleInDegrees=True)
+    writeImage("hgo", np.hstack([image_copy, angle, mag]), True)  # show the images
 
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     img = clahe.apply(image)
