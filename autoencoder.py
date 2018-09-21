@@ -5,6 +5,8 @@ from keras.layers import (
     MaxPooling2D,
     UpSampling2D,
     BatchNormalization,
+    Flatten,
+    Reshape,
 )
 from keras.optimizers import Adam, RMSprop, Adadelta, Adagrad
 from keras.utils import plot_model
@@ -20,12 +22,12 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
-EPOCHS = 5  # max 5 or 10
+EPOCHS = 10  # max 5 or 10
 BATCH_SIZE = 2
 # https://keras.io/optimizers
-OPTIMIZER = Adam(lr=0.001, amsgrad=True)
+# OPTIMIZER = Adam(lr=0.001, amsgrad=True)
 # OPTIMIZER = RMSprop()
-# OPTIMIZER = Adadelta(lr=1.0, rho=0.95, epsilon=None, decay=0.0)
+OPTIMIZER = Adadelta(lr=1.0, rho=0.95, epsilon=None, decay=0.0)
 # OPTIMIZER = Adagrad(lr=0.05)
 
 ap = argparse.ArgumentParser()
@@ -62,7 +64,7 @@ def readFile(gender, dataset, X_img=None, x_gender=None, y_age=None):
     return X_img, x_gender, y_age
 
 
-########################### Auto encoder ############################
+################################# Auto encoder #################################
 def encodedModel(inputs):
     x = Conv2D(1024, kernel_size=(3, 3), padding="same", activation="relu")(inputs)
     x = MaxPooling2D(pool_size=(4, 4), padding="same")(x)
@@ -73,23 +75,27 @@ def encodedModel(inputs):
     encoded = Conv2D(
         64, kernel_size=(3, 3), activation="relu", padding="same", name="encoded"
     )(x)
+    encoded = Flatten()(encoded)
     return encoded
 
 
 def decodedModel(inputs):
+    inputs = Reshape((56, 56, -1))(inputs)
     x = Conv2D(64, kernel_size=(1, 1), activation="relu", padding="same")(inputs)
     x = UpSampling2D(size=(2, 2))(x)
     x = Conv2D(128, kernel_size=(3, 3), activation="relu", padding="same")(x)
     x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(512, kernel_size=(3, 3), activation="relu", padding="same")(x)
+    x = Conv2D(256, kernel_size=(3, 3), activation="relu", padding="same")(x)
     x = UpSampling2D(size=(2, 2))(x)
+    # x = Conv2D(512, kernel_size=(3, 3), activation="relu", padding="same")(x)
+    # x = UpSampling2D(size=(2, 2))(x)
     decoded = Conv2D(
         3, kernel_size=(3, 3), padding="same", activation="sigmoid", name="decoder"
     )(x)
     return decoded
 
 
-####################################################################
+################################# Auto encoder #################################
 
 
 # Run presses if this file is main
@@ -164,7 +170,7 @@ if __name__ == "__main__":
     plt.close()
 
     score = autoencoder.evaluate([x_test], [x_test], batch_size=BATCH_SIZE)
-    print("\nTest loss:", score[0], "\nTest MAE:", score[1])
+    print("Test loss:", score)
 
     decoded_imgs = autoencoder.predict(x_test[:4], batch_size=BATCH_SIZE)
 
