@@ -65,30 +65,30 @@ def readFile(gender, dataset, X_img=None, x_gender=None, y_age=None):
 
 
 ################################# Auto encoder #################################
-def encodedModel(inputs):
-    x = Conv2D(1024, kernel_size=(3, 3), padding="same", activation="relu")(inputs)
-    x = MaxPooling2D(pool_size=(4, 4), padding="same")(x)
-    # x = Conv2D(256, kernel_size=(3, 3), activation="relu", padding="same")(x)
-    # x = MaxPooling2D(pool_size=(2, 2), padding="same")(x)
-    x = Conv2D(128, kernel_size=(3, 3), activation="relu", padding="same")(x)
+def encodedModel(inputs, name="encoder"):
+    x = Conv2D(1024, kernel_size=(2, 2), padding="same", activation="relu")(inputs)
     x = MaxPooling2D(pool_size=(2, 2), padding="same")(x)
+    x = Conv2D(256, kernel_size=(3, 3), activation="relu", padding="same")(x)
+    x = MaxPooling2D(pool_size=(4, 4), padding="same")(x)
+    # x = Conv2D(128, kernel_size=(2, 2), activation="relu", padding="same")(x)
+    # x = MaxPooling2D(pool_size=(2, 2), padding="same")(x)
     encoded = Conv2D(
-        64, kernel_size=(3, 3), activation="relu", padding="same", name="encoded"
+        64, kernel_size=(1, 1), activation="relu", padding="same", name=name
     )(x)
     encoded = Flatten()(encoded)
     return encoded
 
 
-def decodedModel(inputs):
+def decodedModel(inputs, name="dencoder"):
     inputs = Reshape((56, 56, -1))(inputs)
     x = Conv2D(64, kernel_size=(1, 1), activation="relu", padding="same")(inputs)
     x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(128, kernel_size=(3, 3), activation="relu", padding="same")(x)
+    x = Conv2D(128, kernel_size=(2, 2), activation="relu", padding="same")(x)
     x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(256, kernel_size=(3, 3), activation="relu", padding="same")(x)
+    x = Conv2D(256, kernel_size=(2, 2), activation="relu", padding="same")(x)
     x = UpSampling2D(size=(2, 2))(x)
     decoded = Conv2D(
-        3, kernel_size=(3, 3), padding="same", activation="sigmoid", name="decoder"
+        3, kernel_size=(2, 2), padding="same", activation="sigmoid", name=name
     )(x)
     return decoded
 
