@@ -6,50 +6,46 @@ import pandas as pd
 import h5py
 import sys
 
-# Directory of dataset to use
-# TRAIN_DIR = "dataset_sample"
-TRAIN_DIR = "boneage-training-dataset"
-
-# Use N images of dataset, If it is -1 using all dataset
-CUT_DATASET = -1
-
-# Remove images that are less than or equal to 23 months of age
-REMOVE_AGE = 23
-
-# Data augmentation
-DATA_AUGMENTATION = not True
-
-# Image resize
-# IMAGE_SIZE = (299, 299)
-IMAGE_SIZE = (224, 224)
-# IMAGE_SIZE = (448, 448)
-# IMAGE_SIZE = (304, 304)
-
-# Turn saving renders feature on/off
-SAVE_RENDERS = False
-
-# Create intermediate images in separate folders for debugger.
-# mask, cut_hand, delete_object, render
-SAVE_IMAGE_FOR_DEBUGGER = False
-
-# Extracting hands from images and using that new dataset.
-# Simple dataset is correct, I am verifying the original.
-EXTRACTING_HANDS = True
-
-# Turn rotate image on/off
-ROTATE_IMAGE = True
+config = {
+    # Directory of dataset to use
+    # "TRAIN_DIR" : "dataset_sample",
+    "TRAIN_DIR": "boneage-training-dataset",
+    # Use N images of dataset, If it is -1 using all dataset
+    "CUT_DATASET": -1,
+    # Remove images that are less than or equal to 23 months of age
+    "REMOVE_AGE": 23,
+    # Data augmentation
+    "DATA_AUGMENTATION": not True,
+    # Image resize
+    # "IMAGE_SIZE" : (299, 299),
+    "IMAGE_SIZE": (224, 224),
+    # "IMAGE_SIZE": (448, 448),
+    # "IMAGE_SIZE": (304, 304),
+    # Turn saving renders feature on/off
+    "SAVE_RENDERS": False,
+    # Create intermediate images in separate folders for debugger.
+    # mask, cut_hand, delete_object, render
+    "SAVE_IMAGE_FOR_DEBUGGER": False,
+    # Extracting hands from images and using that new dataset.
+    # Simple dataset is correct, I am verifying the original.
+    "EXTRACTING_HANDS": True,
+    # Turn rotate image on/off
+    "ROTATE_IMAGE": True,
+}
 
 # For this problem the validation and test data provided by the concerned authority did not have labels,
 # so the training data was split into train, test and validation sets
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-train_dir = os.path.join(__location__, TRAIN_DIR)
+train_dir = os.path.join(__location__, config["TRAIN_DIR"])
 img_file = ""
 
 
 # Show the images
 def writeImage(path, image, force=False):
-    if SAVE_IMAGE_FOR_DEBUGGER or force:
-        cv2.imwrite(os.path.join(__location__, TRAIN_DIR, path, img_file), image)
+    if config["SAVE_IMAGE_FOR_DEBUGGER"] or force:
+        cv2.imwrite(
+            os.path.join(__location__, config["TRAIN_DIR"], path, img_file), image
+        )
 
 
 # Add black padding for make squera img and keeping ration
@@ -247,20 +243,22 @@ def processImage(img):
     min_color, max_color = getColorsHands(img)
     img = histogramsLevelFix(img, min_color, max_color)
 
-    if EXTRACTING_HANDS:
+    if config["EXTRACTING_HANDS"]:
         # Trim the hand of the image
         img = cutHand(img)
 
-    if ROTATE_IMAGE:
+    if config["ROTATE_IMAGE"]:
         # Rotate hands
         img = rotateImage(img)
 
     # ====================== show the images ================================
-    if SAVE_IMAGE_FOR_DEBUGGER or SAVE_RENDERS:
-        cv2.imwrite(os.path.join(__location__, TRAIN_DIR, "render", img_file), img)
+    if config["SAVE_IMAGE_FOR_DEBUGGER"] or config["SAVE_RENDERS"]:
+        cv2.imwrite(
+            os.path.join(__location__, config["TRAIN_DIR"], "render", img_file), img
+        )
 
     # Resize the images
-    img = cv2.resize(img, IMAGE_SIZE)
+    img = cv2.resize(img, config["IMAGE_SIZE"])
     # Return to original colors
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
     # Convert the image into an 8 bit array
@@ -316,7 +314,9 @@ def loadDataSet(files=[]):
             # Read a image
             img_original = cv2.imread(img_path, 0)
             data_aug = (
-                dataAugmentation(img_original) if DATA_AUGMENTATION else [img_original]
+                dataAugmentation(img_original)
+                if config["DATA_AUGMENTATION"]
+                else [img_original]
             )
             del img_original
             for img in data_aug:
@@ -339,7 +339,7 @@ def loadDataSet(files=[]):
         1,
         total_file,
         total_file,
-        str(len(X_train)) + "image" if DATA_AUGMENTATION else "Completed",
+        str(len(X_train)) + "image" if config["DATA_AUGMENTATION"] else "Completed",
         gender,
     )
 
@@ -370,7 +370,7 @@ def writeFile(gender, dataset, X_train, x_gender, y_age):
 def saveDataSet(genderType, X_train, x_gender, y_age):
     print(
         "Divide the data set...\n{0} {1} image with shape {2}, data augmentation: {3}".format(
-            genderType, len(X_train), X_train[0].shape, DATA_AUGMENTATION
+            genderType, len(X_train), X_train[0].shape, config["DATA_AUGMENTATION"]
         )
     )
     img = np.asarray(X_train, dtype=np.float32)
@@ -394,7 +394,7 @@ def saveDataSet(genderType, X_train, x_gender, y_age):
 # list all the image files and randomly unravel them,
 # in each case you take the first N from the unordered list
 def getFiles():
-    print("Read csv on", TRAIN_DIR)
+    print("Read csv on", config["TRAIN_DIR"])
     female = []
     male = []
     # Read csv
@@ -402,10 +402,13 @@ def getFiles():
 
     for index, row in df.iterrows():
         # Cut list of file
-        if CUT_DATASET <= 0 or (len(female) + len(male)) < CUT_DATASET:
+        if (
+            config["CUT_DATASET"] <= 0
+            or (len(female) + len(male)) < config["CUT_DATASET"]
+        ):
             # Get bone age
             bone_age = row.boneage
-            if bone_age > REMOVE_AGE:
+            if bone_age > config["REMOVE_AGE"]:
                 # Get gender
                 if row.male:
                     male.append((row.id, bone_age, 1))
@@ -417,15 +420,23 @@ def getFiles():
 
 # Create the directories to save the images
 def checkPath():
+    print("Configurations:")
+    for key in config:
+        print("> ", key, ":", config[key])
+
     if not os.path.exists(os.path.join(__location__, "packaging-dataset")):
         os.makedirs(os.path.join(__location__, "packaging-dataset"))
-    if SAVE_IMAGE_FOR_DEBUGGER:
+    if config["SAVE_IMAGE_FOR_DEBUGGER"]:
         for folder in ["histograms_level_fix", "cut_hand", "mask"]:
-            if not os.path.exists(os.path.join(__location__, TRAIN_DIR, folder)):
-                os.makedirs(os.path.join(__location__, TRAIN_DIR, folder))
-    if SAVE_RENDERS or SAVE_IMAGE_FOR_DEBUGGER:
-        if not os.path.exists(os.path.join(__location__, TRAIN_DIR, "render")):
-            os.makedirs(os.path.join(__location__, TRAIN_DIR, "render"))
+            if not os.path.exists(
+                os.path.join(__location__, config["TRAIN_DIR"], folder)
+            ):
+                os.makedirs(os.path.join(__location__, config["TRAIN_DIR"], folder))
+    if config["SAVE_RENDERS"] or config["SAVE_IMAGE_FOR_DEBUGGER"]:
+        if not os.path.exists(
+            os.path.join(__location__, config["TRAIN_DIR"], "render")
+        ):
+            os.makedirs(os.path.join(__location__, config["TRAIN_DIR"], "render"))
 
 
 # Como vamos a usar multi procesos uno por core.
