@@ -13,6 +13,7 @@ from keras.layers import (
     MaxPooling2D,
     regularizers,
     UpSampling2D,
+    Concatenate,
 )
 from keras.models import Model
 from keras.utils import plot_model
@@ -41,7 +42,7 @@ args = vars(ap.parse_args())
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 # network and training
-EPOCHS = 40
+EPOCHS = 60
 BATCH_SIZE = 12
 VERBOSE = 1
 # https://keras.io/optimizers
@@ -106,26 +107,22 @@ img_test, gdr_test, age_test = readFile(
 )
 
 print("img_train shape:", img_train.shape)
-print("gdr_train shape:", gdr_train.shape)
-print("age_train shape:", age_train.shape)
+print("gdr_train shape:", gdr_train.shape[0])
+print("age_train shape:", age_train.shape[0])
 print("img_valid shape:", img_valid.shape)
-print("gdr_valid shape:", gdr_valid.shape)
-print("age_valid shape:", age_valid.shape)
+print("gdr_valid shape:", gdr_valid.shape[0])
+print("age_valid shape:", age_valid.shape[0])
 print("img_test shape:", img_test.shape)
-print("gdr_test shape:", gdr_test.shape)
-print("age_test shape:", age_test.shape)
+print("gdr_test shape:", gdr_test.shape[0])
+print("age_test shape:", age_test.shape[0])
 
 
 # Create regression model
 def regressionModel(inputs):
     # We stack dense layers and dropout layers to avoid overfitting after that
     x = Dense(1256, activation="relu")(inputs)
-
-    x1 = Dropout(0.4)(x)
-    x1 = Dense(1256, activation="relu")(x1)
-    x2 = Dropout(0.4)(x)
-    x2 = Dense(1256, activation="relu")(x2)
-    x = keras.layers.concatenate([x1, x2])
+    x = Dropout(0.3)(x)
+    x = Dense(1000, activation="relu")(x)
 
     # kernel_regularizer=regularizers.l2(0.01),
     # activity_regularizer=regularizers.l1(0.01),
@@ -133,7 +130,7 @@ def regressionModel(inputs):
     x1 = Dense(240, activation="relu")(x1)
     x2 = Dropout(0.35)(x)
     x2 = Dense(240, activation="relu")(x2)
-    x = keras.layers.concatenate([x1, x2])
+    x = Concatenate([x1, x2])
 
     # and the final prediction layer as output (should be the main logistic regression layer)
     model = Dense(1, activation="relu", name="prediction")(x)
@@ -155,8 +152,7 @@ if not USING_OUTPUT_DENCODER:
     output_decoder = decodedModel(output_encoder)
     output_img = Xception(weights="imagenet")(output_decoder)
 else:
-    output_img = Flatten()(output_encoder)
-    output_img = Dense(img_train.shape[1] * 2, activation="relu")(output_img)
+    output_img = Dense(img_train.shape[1] * 2, activation="relu")(output_encoder)
     output_img = Dense(1024, activation="relu")(output_img)
 
 # Gender input layer

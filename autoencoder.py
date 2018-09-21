@@ -22,7 +22,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
-EPOCHS = 10  # max 5 or 10
+EPOCHS = 5  # max 5 or 10
 BATCH_SIZE = 2
 # https://keras.io/optimizers
 # OPTIMIZER = Adam(lr=0.001, amsgrad=True)
@@ -87,8 +87,6 @@ def decodedModel(inputs):
     x = UpSampling2D(size=(2, 2))(x)
     x = Conv2D(256, kernel_size=(3, 3), activation="relu", padding="same")(x)
     x = UpSampling2D(size=(2, 2))(x)
-    # x = Conv2D(512, kernel_size=(3, 3), activation="relu", padding="same")(x)
-    # x = UpSampling2D(size=(2, 2))(x)
     decoded = Conv2D(
         3, kernel_size=(3, 3), padding="same", activation="sigmoid", name="decoder"
     )(x)
