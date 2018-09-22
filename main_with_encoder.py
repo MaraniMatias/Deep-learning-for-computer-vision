@@ -43,8 +43,8 @@ args = vars(ap.parse_args())
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 # network and training
-EPOCHS = 60
-BATCH_SIZE = 10
+EPOCHS = 30
+BATCH_SIZE = 16
 VERBOSE = 1
 # https://keras.io/optimizers
 OPTIMIZER = Adam(lr=0.001, amsgrad=True)
@@ -168,7 +168,6 @@ if not USING_OUTPUT_DENCODER:
     output_decoder = decodedModel(output_encoder)
     output_img = Xception(weights="imagenet")(output_decoder)
 else:
-    # output_img = Dense(img_train.shape[1] * 2, activation="relu")(output_encoder)
     output_img = output_encoder
 
 # Gender input layer

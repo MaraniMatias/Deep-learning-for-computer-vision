@@ -3,7 +3,7 @@
 
 from trainingmonitor import TrainingMonitor
 from keras.applications import InceptionV3, ResNet50, Xception
-from keras.layers import Flatten, Dense, Input, Dropout, regularizers
+from keras.layers import Flatten, Dense, Input, Dropout, regularizers, Concatenate
 from keras.models import Model
 from keras.utils import plot_model
 from keras.optimizers import Adam, RMSprop, Adadelta, Adagrad
@@ -28,7 +28,7 @@ args = vars(ap.parse_args())
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 # network and training
-EPOCHS = 90
+EPOCHS = 30
 BATCH_SIZE = 34
 VERBOSE = 1
 # https://keras.io/optimizers
@@ -131,24 +131,20 @@ gdr_input = Input(shape=(1,), name="gdr_input")
 output_gdr_dense = Dense(2, activation="relu")(gdr_input)
 
 # Concatenating CNN output with sex_dense output after going through shared layer
-x = keras.layers.concatenate([output_cnn, output_gdr_dense])
+x = Concatenate()([output_cnn, output_gdr_dense])
 
 # We stack dense layers and dropout layers to avoid overfitting after that
 x = Dense(1256, activation="relu")(x)
-
-x1 = Dropout(0.3)(x)
-x1 = Dense(1256, activation="relu")(x1)
-x2 = Dropout(0.3)(x)
-x2 = Dense(1256, activation="relu")(x2)
-x = keras.layers.concatenate([x1, x2])
+x = Dropout(0.3)(x)
+x = Dense(768, activation="relu")(x)
 
 # kernel_regularizer=regularizers.l2(0.01),
 # activity_regularizer=regularizers.l1(0.01),
-x1 = Dropout(0.4)(x)
+x1 = Dropout(0.35)(x)
 x1 = Dense(240, activation="relu")(x1)
-x2 = Dropout(0.4)(x)
+x2 = Dropout(0.35)(x)
 x2 = Dense(240, activation="relu")(x2)
-x = keras.layers.concatenate([x1, x2])
+x = Concatenate()([x1, x2])
 
 # and the final prediction layer as output (should be the main logistic regression layer)
 predictions = Dense(1, activation="relu")(x)
