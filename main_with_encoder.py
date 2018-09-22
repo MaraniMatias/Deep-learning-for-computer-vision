@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # ./main.py --load_weight ./weight_file.h5
 
-from autoencoder import encodedModel, decodedModel
+from autoencoder import decodedModel  # encodedModel,
 from trainingmonitor import TrainingMonitor
 from keras.applications import Xception
 from keras.layers import (
@@ -9,6 +9,7 @@ from keras.layers import (
     Dense,
     Dropout,
     Flatten,
+    Reshape,
     Input,
     MaxPooling2D,
     regularizers,
@@ -31,9 +32,9 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-lw", "--load_weights", help="Path to the file weights")
-ap.add_argument(
-    "-ew", "--encoded_weights", default=None, help="Path to the file encoder weights"
-)
+# ap.add_argument(
+#    "-ew", "--encoded_weights", default=None, help="Path to the file encoder weights"
+# )
 ap.add_argument(
     "-d", "--dataset", default="packaging-dataset", help="path to input dataset"
 )
@@ -43,7 +44,7 @@ __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file
 
 # network and training
 EPOCHS = 60
-BATCH_SIZE = 12
+BATCH_SIZE = 10
 VERBOSE = 1
 # https://keras.io/optimizers
 OPTIMIZER = Adam(lr=0.001, amsgrad=True)
@@ -117,8 +118,27 @@ print("gdr_test shape:", gdr_test.shape[0])
 print("age_test shape:", age_test.shape[0])
 
 
+# Create encoder or CNN model
+def encodedModel(inputs, name="encoder"):
+    # x = Conv2D(1024, kernel_size=(2, 2), activation="relu")(inputs)
+    x = Conv2D(1024, kernel_size=(3, 3), activation="relu")(inputs)
+    x = MaxPooling2D(pool_size=(4, 4))(x)
+    # x = Conv2D(128, kernel_size=(2, 2), activation="relu")(x)
+    x = Conv2D(128, kernel_size=(3, 3), activation="relu")(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Conv2D(64, kernel_size=(2, 2), activation="relu")(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Conv2D(32, kernel_size=(2, 2), activation="relu")(x)
+    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = Conv2D(16, kernel_size=(2, 2), activation="relu")(x)
+    x = Flatten()(x)
+    # x = Dropout(0.2)(x)
+    x = Dense(768, activation="relu", name=name)(x)
+    return x
+
+
 # Create regression model
-def regressionModel(inputs):
+def regressionModel(inputs, name="prediction"):
     # We stack dense layers and dropout layers to avoid overfitting after that
     x = Dense(1256, activation="relu")(inputs)
     x = Dropout(0.3)(x)
@@ -130,37 +150,37 @@ def regressionModel(inputs):
     x1 = Dense(240, activation="relu")(x1)
     x2 = Dropout(0.35)(x)
     x2 = Dense(240, activation="relu")(x2)
-    x = Concatenate([x1, x2])
+    x = Concatenate()([x1, x2])
 
     # and the final prediction layer as output (should be the main logistic regression layer)
-    model = Dense(1, activation="relu", name="prediction")(x)
+    model = Dense(1, activation="relu", name=name)(x)
     return model
 
 
-# Main model
 #######################################
+# Main model
 
 # input layer
 image_input = Input(shape=img_train.shape[1:], name="image_input")
-if args["encoded_weights"]:
-    image_input = Input(
-        shape=img_train.shape[1:], name="image_input", weights=args["encoded_weights"]
-    )
+# if args["encoded_weights"]:
+#    image_input = Input(
+#        shape=img_train.shape[1:], name="image_input", weights=args["encoded_weights"]
+#    )
 
 output_encoder = encodedModel(image_input)
 if not USING_OUTPUT_DENCODER:
     output_decoder = decodedModel(output_encoder)
     output_img = Xception(weights="imagenet")(output_decoder)
 else:
-    output_img = Dense(img_train.shape[1] * 2, activation="relu")(output_encoder)
-    output_img = Dense(1024, activation="relu")(output_img)
+    # output_img = Dense(img_train.shape[1] * 2, activation="relu")(output_encoder)
+    output_img = output_encoder
 
 # Gender input layer
 gdr_input = Input(shape=(1,), name="gdr_input")
 output_gdr = Dense(2, activation="relu")(gdr_input)
 
 # Concatenating CNN output with sex_dense output after going through shared layer
-x = keras.layers.concatenate([output_img, output_gdr])
+x = Concatenate()([output_img, output_gdr])
 predictions = regressionModel(x)
 
 # Now that we have created a model structure we can define it

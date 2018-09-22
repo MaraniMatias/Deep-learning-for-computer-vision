@@ -18,7 +18,7 @@ config = {
     "DATA_AUGMENTATION": not True,
     # Image resize
     # "IMAGE_SIZE" : (299, 299),
-    "IMAGE_SIZE": (224, 224),
+    "IMAGE_SIZE": (224, 224),  # Default
     # "IMAGE_SIZE": (448, 448),
     # "IMAGE_SIZE": (304, 304),
     # Turn saving renders feature on/off
