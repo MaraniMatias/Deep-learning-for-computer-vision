@@ -120,20 +120,16 @@ print("age_test shape:", age_test.shape[0])
 
 # Create encoder or CNN model
 def encodedModel(inputs, name="encoder"):
-    # x = Conv2D(1024, kernel_size=(2, 2), activation="relu")(inputs)
     x = Conv2D(1024, kernel_size=(3, 3), activation="relu")(inputs)
     x = MaxPooling2D(pool_size=(4, 4))(x)
-    # x = Conv2D(128, kernel_size=(2, 2), activation="relu")(x)
     x = Conv2D(128, kernel_size=(3, 3), activation="relu")(x)
-    x = MaxPooling2D(pool_size=(2, 2))(x)
-    x = Conv2D(64, kernel_size=(2, 2), activation="relu")(x)
-    x = MaxPooling2D(pool_size=(2, 2))(x)
+    x = MaxPooling2D(pool_size=(4, 4))(x)
     x = Conv2D(32, kernel_size=(2, 2), activation="relu")(x)
     x = MaxPooling2D(pool_size=(2, 2))(x)
     x = Conv2D(16, kernel_size=(2, 2), activation="relu")(x)
     x = Flatten()(x)
-    # x = Dropout(0.2)(x)
-    x = Dense(768, activation="relu", name=name)(x)
+    x = Dropout(0.2)(x)
+    x = Dense(512, activation="relu", name=name)(x)
     return x
 
 
