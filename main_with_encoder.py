@@ -3,18 +3,23 @@
 
 from autoencoder import decodedModel  # encodedModel,
 from trainingmonitor import TrainingMonitor
-from keras.applications import Xception
 from keras.layers import (
+    Activation,
+    Add,
+    BatchNormalization,
+    Concatenate,
     Conv2D,
     Dense,
     Dropout,
     Flatten,
-    Reshape,
+    GlobalAveragePooling2D,
+    GlobalMaxPooling2D,
     Input,
     MaxPooling2D,
     regularizers,
+    Reshape,
+    SeparableConv2D,
     UpSampling2D,
-    Concatenate,
 )
 from keras.models import Model
 from keras.utils import plot_model
@@ -44,7 +49,7 @@ __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file
 
 # network and training
 EPOCHS = 30
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 VERBOSE = 1
 # https://keras.io/optimizers
 OPTIMIZER = Adam(lr=0.001, amsgrad=True)
@@ -52,8 +57,8 @@ OPTIMIZER = Adam(lr=0.001, amsgrad=True)
 # OPTIMIZER = Adadelta(lr=1.0, rho=0.95, epsilon=None, decay=0.0)
 # OPTIMIZER = Adagrad(lr=0.05)
 
-# Usar Xception after deconcoder output or only Encoder output
-USING_OUTPUT_DENCODER = True
+# Usar mionCNN output or only Encoder output
+USING_ENCODER = False
 
 # Path to save model
 PATH_SAVE_MODEL = os.path.join(__location__, "model_backup", "autoencoder_regression")
@@ -119,6 +124,121 @@ print("age_test shape:", age_test.shape[0])
 
 
 # Create encoder or CNN model
+def miniCNN(inputs):
+    x = Conv2D(32, (3, 3), strides=(2, 2), use_bias=False, name="block1_conv1")(inputs)
+    x = BatchNormalization(name="block1_conv1_bn")(x)
+    x = Activation("relu", name="block1_conv1_act")(x)
+    x = Conv2D(64, (3, 3), use_bias=False, name="block1_conv2")(x)
+    x = BatchNormalization(name="block1_conv2_bn")(x)
+    x = Activation("relu", name="block1_conv2_act")(x)
+
+    residual = Conv2D(128, (1, 1), strides=(2, 2), padding="same", use_bias=False)(x)
+    residual = BatchNormalization()(residual)
+
+    x = SeparableConv2D(
+        128, (3, 3), padding="same", use_bias=False, name="block2_sepconv1"
+    )(x)
+    x = BatchNormalization(name="block2_sepconv1_bn")(x)
+    x = Activation("relu", name="block2_sepconv2_act")(x)
+    x = SeparableConv2D(
+        128, (3, 3), padding="same", use_bias=False, name="block2_sepconv2"
+    )(x)
+    x = BatchNormalization(name="block2_sepconv2_bn")(x)
+
+    x = MaxPooling2D((3, 3), strides=(2, 2), padding="same", name="block2_pool")(x)
+    x = Add()([x, residual])
+
+    residual = Conv2D(256, (1, 1), strides=(2, 2), padding="same", use_bias=False)(x)
+    residual = BatchNormalization()(residual)
+
+    x = Activation("relu", name="block3_sepconv1_act")(x)
+    x = SeparableConv2D(
+        256, (3, 3), padding="same", use_bias=False, name="block3_sepconv1"
+    )(x)
+    x = BatchNormalization(name="block3_sepconv1_bn")(x)
+    x = Activation("relu", name="block3_sepconv2_act")(x)
+    x = SeparableConv2D(
+        256, (3, 3), padding="same", use_bias=False, name="block3_sepconv2"
+    )(x)
+    x = BatchNormalization(name="block3_sepconv2_bn")(x)
+
+    x = MaxPooling2D((3, 3), strides=(2, 2), padding="same", name="block3_pool")(x)
+    x = Add()([x, residual])
+
+    residual = Conv2D(728, (1, 1), strides=(2, 2), padding="same", use_bias=False)(x)
+    residual = BatchNormalization()(residual)
+
+    x = Activation("relu", name="block4_sepconv1_act")(x)
+    x = SeparableConv2D(
+        728, (3, 3), padding="same", use_bias=False, name="block4_sepconv1"
+    )(x)
+    x = BatchNormalization(name="block4_sepconv1_bn")(x)
+    x = Activation("relu", name="block4_sepconv2_act")(x)
+    x = SeparableConv2D(
+        728, (3, 3), padding="same", use_bias=False, name="block4_sepconv2"
+    )(x)
+    x = BatchNormalization(name="block4_sepconv2_bn")(x)
+
+    x = MaxPooling2D((3, 3), strides=(2, 2), padding="same", name="block4_pool")(x)
+    x = Add()([x, residual])
+
+    for i in range(8):
+        residual = x
+        prefix = "block" + str(i + 5)
+
+        x = Activation("relu", name=prefix + "_sepconv1_act")(x)
+        x = SeparableConv2D(
+            728, (3, 3), padding="same", use_bias=False, name=prefix + "_sepconv1"
+        )(x)
+        x = BatchNormalization(name=prefix + "_sepconv1_bn")(x)
+        x = Activation("relu", name=prefix + "_sepconv2_act")(x)
+        x = SeparableConv2D(
+            728, (3, 3), padding="same", use_bias=False, name=prefix + "_sepconv2"
+        )(x)
+        x = BatchNormalization(name=prefix + "_sepconv2_bn")(x)
+        x = Activation("relu", name=prefix + "_sepconv3_act")(x)
+        x = SeparableConv2D(
+            728, (3, 3), padding="same", use_bias=False, name=prefix + "_sepconv3"
+        )(x)
+        x = BatchNormalization(name=prefix + "_sepconv3_bn")(x)
+
+        x = Add()([x, residual])
+
+    residual = Conv2D(1024, (1, 1), strides=(2, 2), padding="same", use_bias=False)(x)
+    residual = BatchNormalization()(residual)
+
+    x = Activation("relu", name="block13_sepconv1_act")(x)
+    x = SeparableConv2D(
+        728, (3, 3), padding="same", use_bias=False, name="block13_sepconv1"
+    )(x)
+    x = BatchNormalization(name="block13_sepconv1_bn")(x)
+    x = Activation("relu", name="block13_sepconv2_act")(x)
+    x = SeparableConv2D(
+        1024, (3, 3), padding="same", use_bias=False, name="block13_sepconv2"
+    )(x)
+    x = BatchNormalization(name="block13_sepconv2_bn")(x)
+
+    x = MaxPooling2D((3, 3), strides=(2, 2), padding="same", name="block13_pool")(x)
+    x = Add()([x, residual])
+
+    x = SeparableConv2D(
+        1536, (3, 3), padding="same", use_bias=False, name="block14_sepconv1"
+    )(x)
+    x = BatchNormalization(name="block14_sepconv1_bn")(x)
+    x = Activation("relu", name="block14_sepconv1_act")(x)
+
+    x = SeparableConv2D(
+        2048, (3, 3), padding="same", use_bias=False, name="block14_sepconv2"
+    )(x)
+    x = BatchNormalization(name="block14_sepconv2_bn")(x)
+    x = Activation("relu", name="block14_sepconv2_act")(x)
+    x = GlobalAveragePooling2D()(x)
+    # x = GlobalMaxPooling2D()(x)
+    x = Dense(256, activation="sigmoid")(x)
+
+    return x
+
+
 def encodedModel(inputs, name="encoder"):
     x = Conv2D(1024, kernel_size=(3, 3), activation="relu")(inputs)
     x = MaxPooling2D(pool_size=(4, 4))(x)
@@ -127,7 +247,8 @@ def encodedModel(inputs, name="encoder"):
     x = Conv2D(32, kernel_size=(2, 2), activation="relu")(x)
     x = MaxPooling2D(pool_size=(2, 2))(x)
     x = Conv2D(16, kernel_size=(2, 2), activation="relu")(x)
-    x = Flatten()(x)
+    # x = Flatten()(x)
+    x = GlobalAveragePooling2D()(x)
     x = Dropout(0.2)(x)
     x = Dense(512, activation="relu", name=name)(x)
     return x
@@ -158,17 +279,12 @@ def regressionModel(inputs, name="prediction"):
 
 # input layer
 image_input = Input(shape=img_train.shape[1:], name="image_input")
-# if args["encoded_weights"]:
-#    image_input = Input(
-#        shape=img_train.shape[1:], name="image_input", weights=args["encoded_weights"]
-#    )
 
-output_encoder = encodedModel(image_input)
-if not USING_OUTPUT_DENCODER:
-    output_decoder = decodedModel(output_encoder)
-    output_img = Xception(weights="imagenet")(output_decoder)
+if USING_ENCODER:
+    output_img = encodedModel(image_input)
+    # output_img = decodedModel(output_img)
 else:
-    output_img = output_encoder
+    output_img = miniCNN(image_input)
 
 # Gender input layer
 gdr_input = Input(shape=(1,), name="gdr_input")

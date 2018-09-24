@@ -29,7 +29,7 @@ __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file
 
 # network and training
 EPOCHS = 30
-BATCH_SIZE = 34
+BATCH_SIZE = 32
 VERBOSE = 1
 # https://keras.io/optimizers
 OPTIMIZER = Adam(lr=0.001, amsgrad=True)
@@ -113,6 +113,24 @@ print("img_test shape:", img_test.shape)
 print("gdr_test shape:", gdr_test.shape[0])
 print("age_test shape:", age_test.shape[0])
 
+# Create regression model
+def regressionModel(inputs, name="prediction"):
+    # We stack dense layers and dropout layers to avoid overfitting after that
+    x = Dense(1256, activation="relu")(inputs)
+    x = Dense(1000, activation="relu")(x)
+
+    # kernel_regularizer=regularizers.l2(0.01),
+    # activity_regularizer=regularizers.l1(0.01),
+    x = Dropout(0.5)(x)
+    x1 = Dense(240, activation="relu")(x)
+    x2 = Dense(240, activation="relu")(x)
+    x = Concatenate()([x1, x2])
+
+    # and the final prediction layer as output (should be the main logistic regression layer)
+    model = Dense(1, activation="relu", name=name)(x)
+    return model
+
+
 # First we need to create a model structure
 # Image input layer
 image_input = Input(shape=img_train.shape[1:], name="image_input")
@@ -132,21 +150,7 @@ output_gdr_dense = Dense(2, activation="relu")(gdr_input)
 
 # Concatenating CNN output with sex_dense output after going through shared layer
 x = Concatenate()([output_cnn, output_gdr_dense])
-
-# We stack dense layers and dropout layers to avoid overfitting after that
-x = Dense(1256, activation="relu")(x)
-x = Dropout(0.3)(x)
-x = Dense(768, activation="relu")(x)
-
-# kernel_regularizer=regularizers.l2(0.01),
-# activity_regularizer=regularizers.l1(0.01),
-x1 = Dropout(0.35)(x)
-x1 = Dense(240, activation="relu")(x1)
-x2 = Dropout(0.35)(x)
-x2 = Dense(240, activation="relu")(x2)
-x = Concatenate()([x1, x2])
-
-# and the final prediction layer as output (should be the main logistic regression layer)
+x = regressionModel(x, name="predictions_3")
 predictions = Dense(1, activation="relu")(x)
 
 # Now that we have created a model structure we can define it
